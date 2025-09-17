@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>东方主题网页</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .blind {
+      flex: 1;
+      background-size: cover;
+      background-position: center;
+      transition: all 0.5s;
+      filter: brightness(0.7);
+    }
+    .blind:hover {
+      flex: 3;
+      filter: brightness(1);
+    }
+    .corner {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+    }
+    .corner img {
+      width: 120px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    }
+    /* 遮罩层 */
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 24px;
+      z-index: 1000;
+    }
+    #overlay button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    audio { display: none; }
+  </style>
+</head>
+<body>
+  <!-- 遮罩层 -->
+  <div id="overlay">
+    <div>
+      <p>欢迎来到东方世界！</p>
+      <button onclick="startSite()">进入</button>
+    </div>
+  </div>
+
+  <!-- 百叶窗效果 -->
+  <div class="container">
+    <div class="blind" style="background-image: url('image/bg1.jpg');"></div>
+    <div class="blind" style="background-image: url('image/bg2.jpg');"></div>
+    <div class="blind" style="background-image: url('image/bg3.jpg');"></div>
+    <div class="blind" style="background-image: url('image/bg4.jpg');"></div>
+    <div class="blind" style="background-image: url('image/bg5.jpg');"></div>
+  </div>
+
+  <!-- 小角落展示图 -->
+  <div class="corner">
+    <img src="image/corner.jpg" alt="东方角色">
+  </div>
+
+  <!-- 背景音乐 -->
+  <audio id="bgm" loop>
+    <source src="audio/bgm.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    function startSite() {
+      document.getElementById("overlay").style.display = "none";
+      const music = document.getElementById("bgm");
+      music.play();
+    }
+  </script>
+</body>
+</html>
+
