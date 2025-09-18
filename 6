@@ -1,0 +1,139 @@
+document.addEventListener('DOMContentLoaded', () => {
+  // ===== 配置（按需改名/路径） =====
+  const musicList = [
+    'music/bgm1.mp3',
+    'music/bgm2.mp3',
+    'music/bgm3.mp3'
+  ];
+  // =================================
+
+  const overlay = document.getElementById('overlay');
+  const enterBtn = document.getElementById('enterBtn');
+  const bgm = document.getElementById('bgm');
+  const musicControl = document.getElementById('musicControl');
+
+  let currentIndex = -1;
+  let sakuraTimer = null;
+
+  // 随机选索引（避免重复）
+  function chooseNextIndex(){
+    if (!musicList || musicList.length === 0) return -1;
+    if (musicList.length === 1) return 0;
+    let idx;
+    do { idx = Math.floor(Math.random() * musicList.length); } while (idx === currentIndex);
+    return idx;
+  }
+
+  function updateMusicUI(isPlaying){
+    musicControl.classList.toggle('playing', !!isPlaying);
+    musicControl.setAttribute('aria-pressed', !!isPlaying);
+  }
+
+  function playAtIndex(idx){
+    if (idx < 0 || idx >= musicList.length) return;
+    currentIndex = idx;
+    const url = musicList[idx];
+    if (!url) return;
+    if (bgm.src.indexOf(url) === -1) bgm.src = url;
+    bgm.currentTime = 0;
+    bgm.loop = false;
+    bgm.play().then(()=> updateMusicUI(true)).catch(err=>{
+      console.warn('play() 被阻止或失败：', err);
+      updateMusicUI(false);
+    });
+  }
+
+  function playRandomMusic(){
+    const next = chooseNextIndex();
+    if (next === -1) return;
+    musicControl.classList.add('flash');
+    setTimeout(()=> musicControl.classList.remove('flash'), 650);
+    playAtIndex(next);
+  }
+
+  // 点击进入：隐藏遮罩、开始播放（解锁）、启动樱花
+  enterBtn.addEventListener('click', () => {
+    overlay.style.transition = 'opacity 300ms ease';
+    overlay.style.opacity = '0';
+    overlay.addEventListener('transitionend', function once(){ overlay.style.display='none'; overlay.removeEventListener('transitionend', once); });
+    bgm.muted = false;
+    playRandomMusic();
+    startSakura();
+  });
+
+  // 左下切歌按钮
+  musicControl.addEventListener('click', () => {
+    if (currentIndex === -1 || bgm.paused) { bgm.muted = false; playRandomMusic(); return; }
+    playRandomMusic();
+  });
+
+  // 曲终换下一首
+  bgm.addEventListener('ended', playRandomMusic);
+
+  // 首次任意交互（保险）解锁播放
+  function onFirstInteraction(){
+    if (bgm && bgm.paused && currentIndex === -1) { bgm.muted = false; playRandomMusic(); }
+    else if (bgm && !bgm.paused && bgm.muted) { bgm.muted = false; updateMusicUI(true); }
+    document.removeEventListener('pointerdown', onFirstInteraction);
+  }
+  document.addEventListener('pointerdown', onFirstInteraction, { once:true });
+
+  // 作为回退：尝试静音 autoplay（多数浏览器允许 muted autoplay）
+  (function tryMutedAutoplay(){
+    if (!musicList || musicList.length === 0) return;
+    try {
+      bgm.muted = true;
+      bgm.src = musicList[Math.floor(Math.random()*musicList.length)];
+      bgm.play().then(()=> console.log('静音 autoplay 成功')).catch(()=> console.log('静音 autoplay 被阻止或失败'));
+    } catch(e){}
+  })();
+
+  /* ==== 樱花逻辑 ==== */
+  function createSakura() {
+    const outer = document.createElement('div');
+    outer.className = 'sakura';
+    outer.style.left = (Math.random() * 100) + 'vw';
+    const size = (Math.random() * 8) + 8; // 8 ~ 16 px
+    outer.style.width = size + 'px';
+    outer.style.height = Math.round(size * 0.9) + 'px';
+    const fallDur = (5 + Math.random() * 3).toFixed(2) + 's';
+    const swayDur = (3 + Math.random() * 3).toFixed(2) + 's';
+    outer.style.setProperty('--fall', fallDur);
+    outer.style.setProperty('--sway', swayDur);
+    const petal = document.createElement('span'); petal.className = 'petal';
+    outer.appendChild(petal);
+    document.body.appendChild(outer);
+    setTimeout(()=> { try{ outer.remove(); } catch(e){} }, (parseFloat(fallDur) * 1000) + 900);
+  }
+
+  function startSakura(){
+    if (sakuraTimer) return;
+    sakuraTimer = setInterval(createSakura, 300);
+  }
+
+  // 点击页面在点击点生成特殊樱花（若点击的是按钮则忽略）
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#enterBtn') || e.target.closest('#musicControl')) return;
+    const outer = document.createElement('div');
+    outer.className = 'sakura-click';
+    const size = (Math.random() * 10) + 10; // 10 ~ 20 px
+    outer.style.width = size + 'px';
+    outer.style.height = Math.round(size * 0.9) + 'px';
+    outer.style.left = (e.clientX - size/2) + 'px';
+    outer.style.top = (e.clientY - size/2) + 'px';
+    const fallDur = (5 + Math.random() * 3).toFixed(2) + 's';
+    const swayDur = (3 + Math.random() * 2).toFixed(2) + 's';
+    outer.style.setProperty('--fall', fallDur);
+    outer.style.setProperty('--sway', swayDur);
+    const petal = document.createElement('span'); petal.className = 'petal';
+    outer.appendChild(petal);
+    document.body.appendChild(outer);
+    setTimeout(()=> { try{ outer.remove(); } catch(e){} }, (parseFloat(fallDur) * 1000) + 900);
+  });
+
+  // 页面卸载时清理
+  window.addEventListener('beforeunload', ()=> { if (sakuraTimer) clearInterval(sakuraTimer); });
+
+  // 小提示：如果图片或音乐加载失败，打开 F12 → Network/Console 查看 404 报错
+  console.log('多文件版脚本就绪 — 若资源未加载，请检查 images/ 与 music/ 下的文件名和路径（区分大小写）。');
+});
