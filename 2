@@ -1,0 +1,55 @@
+// 遮罩层进入按钮
+document.getElementById("enter-btn").addEventListener("click", () => {
+  const overlay = document.getElementById("overlay");
+  overlay.style.transition = "opacity 2s ease";
+  overlay.style.opacity = "0";
+  setTimeout(() => overlay.style.display = "none", 2000);
+
+  // 进入时开始播放音乐
+  playRandomMusic();
+});
+
+// 🎵 音乐播放控制
+const bgm = document.getElementById("bgm");
+
+const musicList = [
+  "music/bgm1.mp3",
+  "music/bgm2.mp3",
+  "music/bgm3.mp3"
+];
+
+let currentIndex = -1;
+
+function playRandomMusic() {
+  let newIndex;
+  do {
+    newIndex = Math.floor(Math.random() * musicList.length);
+  } while (newIndex === currentIndex && musicList.length > 1);
+
+  currentIndex = newIndex;
+  bgm.src = musicList[currentIndex];
+  bgm.play().catch(err => {
+    console.log("播放失败，可能需要用户交互", err);
+  });
+}
+
+// 播放结束后自动换曲
+bgm.addEventListener("ended", playRandomMusic);
+
+// 🌸 樱花飘落效果
+function createSakura() {
+  const sakura = document.createElement("div");
+  sakura.classList.add("sakura");
+
+  sakura.style.left = Math.random() * 100 + "vw";
+  sakura.style.animationDuration = (Math.random() * 3 + 5) + "s";
+  sakura.style.opacity = Math.random();
+
+  document.body.appendChild(sakura);
+  setTimeout(() => sakura.remove(), 8000);
+}
+
+setInterval(createSakura, 300);
+
+// 🎵 点击文字切换音乐
+document.querySelector(".music-control").addEventListener("click", playRandomMusic);
