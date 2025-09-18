@@ -1,0 +1,173 @@
+/* 简明且稳健的脚本：播放/切歌/樱花/资源检查 */
+document.addEventListener('DOMContentLoaded', () => {
+  // ====== 配置（按需修改文件名） ======
+  const bgImgList = [
+    'image/bg1.jpg',
+    'image/bg2.jpg',
+    'image/bg3.jpg',
+    'image/bg4.jpg',
+    'image/bg5.jpg'
+  ];
+  const musicList = [
+    'music/bgm1.mp3',
+    'music/bgm2.mp3',
+    'music/bgm3.mp3'
+  ];
+  // =====================================
+
+  const overlay = document.getElementById('overlay');
+  const enterBtn = document.getElementById('enterBtn');
+  const bgm = document.getElementById('bgm');
+  const musicControl = document.getElementById('musicControl');
+  const blinds = document.querySelectorAll('.blind');
+
+  let currentIndex = -1;
+  let sakuraTimer = null;
+
+  // 把 data-bg 同步到元素样式（轻容错：若 data-bg 无则使用 bgImgList）
+  blinds.forEach((el, i) => {
+    const p = el.getAttribute('data-bg') || bgImgList[i] || '';
+    if (p) el.style.backgroundImage = `url('${p}')`;
+  });
+
+  // 资源预检（控制台提示方便调试）
+  (function checkResources(){
+    bgImgList.forEach(p => { const img=new Image(); img.onerror = ()=> console.warn('背景图未找到:', p); img.src = p; });
+    musicList.forEach(m => { const a=document.createElement('audio'); a.onerror = ()=> console.warn('音乐未找到或格式不支持:', m); a.src = m; });
+    const corner = new Image(); corner.onerror = ()=> console.warn('角落图未找到: image/corner.jpg'); corner.src = 'image/corner.jpg';
+  })();
+
+  // 随机/顺序选择下首（避免和当前相同）
+  function chooseNextIndex(){
+    if (!musicList || musicList.length === 0) return -1;
+    if (musicList.length === 1) return 0;
+    let idx;
+    do { idx = Math.floor(Math.random() * musicList.length); } while (idx === currentIndex);
+    return idx;
+  }
+
+  function updateMusicUI(isPlaying){
+    musicControl.classList.toggle('playing', !!isPlaying);
+    musicControl.setAttribute('aria-pressed', !!isPlaying);
+  }
+
+  function playAtIndex(idx){
+    if (idx < 0 || idx >= musicList.length) return;
+    currentIndex = idx;
+    const url = musicList[idx];
+    if (!url) return;
+    if (bgm.src.indexOf(url) === -1) bgm.src = url;
+    bgm.currentTime = 0;
+    bgm.loop = false; // 用 ended 切下一首
+    bgm.play().then(()=> updateMusicUI(true)).catch(err => {
+      console.warn('播放被阻止或失败:', err);
+      updateMusicUI(false);
+    });
+  }
+
+  function playRandomMusic(){
+    const next = chooseNextIndex();
+    if (next === -1) return;
+    musicControl.classList.add('flash');
+    setTimeout(()=> musicControl.classList.remove('flash'), 650);
+    playAtIndex(next);
+  }
+
+  // 进入：隐藏遮罩、开始（解锁）播放、启樱花
+  enterBtn.addEventListener('click', () => {
+    overlay.style.transition = 'opacity 300ms ease';
+    overlay.style.opacity = '0';
+    overlay.addEventListener('transitionend', function once(){ overlay.style.display='none'; overlay.removeEventListener('transitionend', once); });
+    bgm.muted = false;
+    playRandomMusic();
+    startSakura();
+  });
+
+  // 左下切歌
+  musicControl.addEventListener('click', () => {
+    if (currentIndex === -1 || bgm.paused) { bgm.muted = false; playRandomMusic(); return; }
+    playRandomMusic();
+  });
+
+  bgm.addEventListener('ended', playRandomMusic);
+
+  // 首次任意交互也可解锁（保险）
+  function onFirstInteraction(){
+    if (bgm && bgm.paused && currentIndex === -1) { bgm.muted = false; playRandomMusic(); }
+    else if (bgm && !bgm.paused && bgm.muted) { bgm.muted = false; updateMusicUI(true); }
+    document.removeEventListener('pointerdown', onFirstInteraction);
+  }
+  document.addEventListener('pointerdown', onFirstInteraction, { once:true });
+
+  // 回退：尝试静音 autoplay（多数浏览器允许 muted autoplay）
+  (function tryMutedAutoplay(){
+    if (!musicList || musicList.length===0) return;
+    try{
+      bgm.muted = true;
+      bgm.src = musicList[Math.floor(Math.random()*musicList.length)];
+      bgm.play().then(()=> console.log('静音 autoplay 成功')).catch(()=> console.log('静音 autoplay 被阻止或失败'));
+    }catch(e){}
+  })();
+
+  /* ===== 樱花逻辑 ===== */
+  function createSakuraAt(leftVW, isClick){
+    const outer = document.createElement('div');
+    outer.className = isClick ? 'sakura-click' : 'sakura';
+    outer.style.left = (leftVW + (isClick ? 'px' : 'vw'));
+    const size = (isClick ? (Math.random()*10)+10 : (Math.random()*8)+8);
+    outer.style.width = size + 'px';
+    outer.style.height = Math.round(size*0.9) + 'px';
+    const fallDur = (5 + Math.random()*3).toFixed(2) + 's';
+    const swayDur = (3 + Math.random()*3).toFixed(2) + 's';
+    outer.style.setProperty('--fallDur', fallDur);
+    outer.style.setProperty('--swayDur', swayDur);
+
+    const petal = document.createElement('span');
+    petal.className = 'petal';
+    outer.appendChild(petal);
+
+    document.body.appendChild(outer);
+    setTimeout(()=> { try{ outer.remove(); } catch(e){} }, (parseFloat(fallDur)*1000) + 900);
+  }
+
+  function createSakura(){
+    // left as vw number
+    createSakuraAt(Math.random()*100, false);
+  }
+
+  function startSakura(){
+    if (sakuraTimer) return;
+    sakuraTimer = setInterval(createSakura, 300);
+  }
+
+  // 点击页面在点击点生成特殊樱花（若点击的是按钮则忽略）
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#enterBtn') || e.target.closest('#musicControl')) return;
+    // convert clientX to vw-value for consistent placement
+    const vw = (e.clientX / window.innerWidth) * 100;
+    // we'll pass px offset as number and mark isClick true
+    const pxLeft = e.clientX + 'px';
+    // create special click petal at px coordinates
+    const outer = document.createElement('div');
+    outer.className = 'sakura-click';
+    outer.style.left = (e.clientX - 10) + 'px';
+    outer.style.top = (e.clientY - 10) + 'px';
+    const size = (Math.random()*10) + 10;
+    outer.style.width = size + 'px';
+    outer.style.height = Math.round(size*0.9) + 'px';
+    const fallDur = (5 + Math.random()*3).toFixed(2) + 's';
+    const swayDur = (3 + Math.random()*2).toFixed(2) + 's';
+    outer.style.setProperty('--fallDur', fallDur);
+    outer.style.setProperty('--swayDur', swayDur);
+    const petal = document.createElement('span');
+    petal.className = 'petal';
+    outer.appendChild(petal);
+    document.body.appendChild(outer);
+    setTimeout(()=> { try{ outer.remove(); } catch(e){} }, (parseFloat(fallDur)*1000) + 900);
+  });
+
+  // 清理
+  window.addEventListener('beforeunload', ()=> { if (sakuraTimer) clearInterval(sakuraTimer); });
+
+  console.log('多文件版本已加载。若资源加载失败，请在浏览器控制台（F12 → Network/Console）检查 404 或 Failed to load resource 的具体路径。');
+});
